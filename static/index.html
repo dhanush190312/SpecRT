@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SpecRt | Radiotherapy Isocenter Sequence Optimizer</title>
+  <meta name="description" content="AI-driven isocenter sequence optimization for radiotherapy DICOM-RT plans using Traveling Salesperson Problem (2-opt & Held-Karp) algorithms.">
+  
+  <!-- Typography: Outfit & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- Plotly.js for high-performance 3D WebGL Scatter & Trajectory Plotting -->
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="page-home">
+  <!-- Ambient Wave Backdrop -->
+  <div class="ambient-container">
+    <div class="glow-orb glow-top-left"></div>
+    <div class="glow-orb glow-top-right"></div>
+    <div class="glow-orb glow-bottom-center"></div>
+
+    <svg class="svg-wave-backdrop" viewBox="0 0 1440 900" fill="none" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M-100 180 C 300 280, 650 40, 1100 160 C 1300 210, 1450 140, 1600 90" stroke="url(#waveGrad1)" stroke-width="2.5" stroke-dasharray="6 6" />
+      <path d="M-50 420 C 350 200, 750 520, 1200 320 C 1380 240, 1500 290, 1600 340" stroke="url(#waveGrad2)" stroke-width="3" />
+      <path d="M-100 680 C 400 500, 800 780, 1300 540 C 1450 480, 1550 520, 1650 560" stroke="url(#waveGrad1)" stroke-width="1.8" />
+      <defs>
+        <linearGradient id="waveGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.5"/>
+          <stop offset="50%" stop-color="#FF849D" stop-opacity="0.3"/>
+          <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.6"/>
+        </linearGradient>
+        <linearGradient id="waveGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.7"/>
+          <stop offset="40%" stop-color="#FF849D" stop-opacity="0.3"/>
+          <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.8"/>
+        </linearGradient>
+      </defs>
+    </svg>
+  </div>
+
+  <div class="app-container">
+    <!-- Header Navigation Bar -->
+    <header class="app-header">
+      <div class="brand-group">
+        <div class="brand-logo">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <circle cx="12" cy="12" r="6"></circle>
+            <circle cx="12" cy="12" r="2"></circle>
+            <line x1="12" y1="2" x2="12" y2="6"></line>
+            <line x1="12" y1="18" x2="12" y2="22"></line>
+            <line x1="2" y1="12" x2="6" y2="12"></line>
+            <line x1="18" y1="12" x2="22" y2="12"></line>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-title">
+            <span class="gradient-text">SpecRt</span>
+            <span class="badge badge-tech">TSP Optimizer</span>
+          </div>
+          <p class="brand-subtitle">Radiotherapy DICOM-RT Isocenter Path & Couch Sequencing</p>
+        </div>
+      </div>
+
+      <div class="header-status">
+        <div class="status-indicator">
+          <span class="status-dot"></span>
+          <span>Engine Active: 2-Opt & Held-Karp</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Flow: Page 1 (Home) vs Page 2 (Results) -->
+    <main class="main-content">
+      
+      <!-- ====================================================================
+           PAGE 1: HOME PAGE (Upload & Configure)
+           ==================================================================== -->
+      <section class="page-view" id="pageHome">
+        
+        <div class="home-hero-header">
+          <h1 class="hero-title">Precision Radiotherapy Isocenter Sequencing</h1>
+          <p class="hero-subtitle">Upload your DICOM-RT treatment plan to calculate the optimal multi-target couch traversal path using exact Held-Karp and 2-opt algorithms.</p>
+        </div>
+
+        <div class="panel upload-panel" id="uploadPanel">
+          <div class="panel-header">
+            <h2>Upload DICOM-RT Treatment Plan</h2>
+            <div class="controls-toolbar">
+              <!-- Tour Type Toggle -->
+              <div class="toggle-group" title="Choose whether the couch/gantry returns to the starting isocenter">
+                <label class="toggle-label">Route Mode:</label>
+                <div class="switch-container">
+                  <button type="button" class="mode-btn active" id="btnClosedMode">Closed Tour (Loop)</button>
+                  <button type="button" class="mode-btn" id="btnOpenMode">Open Path (One-Way)</button>
+                </div>
+              </div>
+
+              <!-- Tolerance Selector -->
+              <div class="tolerance-group">
+                <label for="toleranceInput">Merge Tolerance:</label>
+                <select id="toleranceInput" class="select-input">
+                  <option value="0.05">0.05 mm</option>
+                  <option value="0.1" selected>0.10 mm (Standard)</option>
+                  <option value="0.5">0.50 mm</option>
+                  <option value="1.0">1.00 mm</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Drag & Drop Upload Zone -->
+          <div class="dropzone" id="dropzone">
+            <input type="file" id="fileInput" accept=".dcm,application/dicom" class="file-input-hidden">
+            <div class="dropzone-content">
+              <div class="upload-icon-wrapper">
+                <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="17 8 12 3 7 8"></polyline>
+                  <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+              </div>
+              <h3>Drag and drop your DICOM-RT Plan (<code class="code-inline">.dcm</code>) here</h3>
+              <p>Compatible with any TPS (Eclipse, RayStation, Monaco) with <span class="highlight">Modality = RTPLAN</span> and <span class="highlight">BeamSequence</span></p>
+              
+              <!-- Buttons without icons -->
+              <div class="dropzone-buttons">
+                <button type="button" class="btn btn-primary" id="btnBrowse">Browse File</button>
+                <span class="divider-text">or test instantly</span>
+                <button type="button" class="btn btn-secondary" id="btnSample6">Load 6-Target Sample</button>
+                <button type="button" class="btn btn-secondary" id="btnSample8">Random 8-Target</button>
+                <button type="button" class="btn btn-primary" id="btnViewResults" style="display: none;">View Calculated Results</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Error Alert Container -->
+          <div class="alert alert-error" id="errorAlert" style="display: none;">
+            <span id="errorMessage">Error text</span>
+          </div>
+
+          <!-- Home Page Background Image Selector Bar -->
+          <div class="bg-customizer-bar">
+            <span>Home Background:</span>
+            <input type="file" id="bgImageInput" accept="image/*" style="display: none;">
+            <button type="button" class="btn btn-sm btn-ghost" id="btnChangeBg">Upload Background Image</button>
+            <button type="button" class="btn btn-sm btn-ghost" id="btnResetBg" style="display: none;">Reset Background</button>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Loading State Overlay -->
+      <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+        <div class="spinner"></div>
+        <h4>Optimizing Radiotherapy Isocenter Path...</h4>
+        <p>Extracting 3D coordinates & executing 2-Opt local search</p>
+      </div>
+
+      <!-- ====================================================================
+           PAGE 2: RESULTS DASHBOARD (Second Page)
+           ==================================================================== -->
+      <section class="page-view" id="pageResults" style="display: none;">
+        
+        <!-- Navigation Bar for Results Page with BACK Button -->
+        <div class="results-header-bar">
+          <div class="results-nav-left">
+            <button type="button" class="btn btn-secondary" id="btnBackToHome">Back to Home</button>
+            <div class="active-file-info">
+              <span class="file-badge">DICOM-RT</span>
+              <span class="file-name" id="currentFileName">sample_rtplan.dcm</span>
+              <span class="mode-badge" id="currentModeBadge">Closed Tour</span>
+            </div>
+          </div>
+          
+          <div class="header-actions">
+            <button type="button" class="btn btn-sm btn-ghost" id="btnExportJSON">Export JSON</button>
+            <button type="button" class="btn btn-sm btn-ghost" id="btnExportCSV">Export CSV</button>
+            <button type="button" class="btn btn-sm btn-outline" id="btnReset">Upload New Plan</button>
+          </div>
+        </div>
+
+        <!-- Metrics KPI Grid -->
+        <div class="kpi-grid">
+          <div class="kpi-card highlight-card">
+            <div class="kpi-label">Distance Saved</div>
+            <div class="kpi-value-group">
+              <span class="kpi-value" id="kpiSavedDist">0.00</span>
+              <span class="kpi-unit">mm</span>
+            </div>
+            <div class="kpi-badge kpi-badge-positive" id="kpiSavedPct">0.0% Reduction</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-label">Optimized Path (2-Opt)</div>
+            <div class="kpi-value-group">
+              <span class="kpi-value" id="kpiOptimizedDist">0.00</span>
+              <span class="kpi-unit">mm</span>
+            </div>
+            <div class="kpi-subtext" id="kpiOptimizedSub">Recommended sequence</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-label">Initial Default Path</div>
+            <div class="kpi-value-group">
+              <span class="kpi-value" id="kpiInitialDist">0.00</span>
+              <span class="kpi-unit">mm</span>
+            </div>
+            <div class="kpi-subtext">Original beam definition order</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-label">Unique Isocenters</div>
+            <div class="kpi-value-group">
+              <span class="kpi-value" id="kpiPointCount">0</span>
+              <span class="kpi-unit">targets</span>
+            </div>
+            <div class="kpi-subtext" id="kpiBeamCount">0 total beams mapped</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-label">Held-Karp Optimality</div>
+            <div class="kpi-value-group">
+              <span class="kpi-value" id="kpiExactGap">0.00%</span>
+            </div>
+            <div class="kpi-subtext" id="kpiExactStatus">Exact Global Optimum</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-label">Execution Time</div>
+            <div class="kpi-value-group">
+              <span class="kpi-value" id="kpiExecutionTime">0.0</span>
+              <span class="kpi-unit">ms</span>
+            </div>
+            <div class="kpi-subtext">Instant local computation</div>
+          </div>
+        </div>
+
+        <!-- 3D Visualization & Path Sequence Split View -->
+        <div class="vis-split-layout">
+          
+          <!-- Left: 3D WebGL Canvas -->
+          <div class="panel vis-panel">
+            <div class="panel-header">
+              <div class="vis-title-group">
+                <h3>3D Isocenter Trajectory Space</h3>
+                <span class="vis-hint">Drag to rotate • Scroll to zoom • Hover points for beam details</span>
+              </div>
+              <div class="vis-controls">
+                <button type="button" class="btn-vis active" id="btnVisBoth">Both Paths</button>
+                <button type="button" class="btn-vis" id="btnVisOptimized">Optimized Only</button>
+                <button type="button" class="btn-vis" id="btnVisInitial">Initial Only</button>
+                <button type="button" class="btn-vis" id="btnResetCamera">Reset View</button>
+              </div>
+            </div>
+            <div id="plot3d" class="plot-container"></div>
+          </div>
+
+          <!-- Right: Recommended Step-by-Step Path Sequence -->
+          <div class="panel sequence-panel">
+            <div class="panel-header">
+              <h3>Recommended Visiting Order</h3>
+              <span class="badge badge-tech" id="badgeStepCount">0 Legs</span>
+            </div>
+
+            <div class="route-summary-string" id="routePathString"></div>
+
+            <div class="legs-list-container" id="legsList"></div>
+          </div>
+
+        </div>
+
+        <!-- Bottom Tabs Section: Data Tables -->
+        <div class="panel tables-panel">
+          <div class="tabs-header">
+            <button type="button" class="tab-btn active" data-tab="tabComparison">Algorithm Comparison</button>
+            <button type="button" class="tab-btn" data-tab="tabPoints">Extracted Isocenters (<span id="tabPointsCount">0</span>)</button>
+            <button type="button" class="tab-btn" data-tab="tabMatrix">Pairwise 3D Distance Matrix</button>
+          </div>
+
+          <div class="tab-content">
+            <!-- Tab 1: Comparison -->
+            <div class="tab-pane active" id="tabComparison">
+              <table class="data-table" id="comparisonTable">
+                <thead>
+                  <tr>
+                    <th>Method</th>
+                    <th>Total Distance (mm)</th>
+                    <th>Savings vs Initial</th>
+                    <th>Route Traversed</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="comparisonTableBody"></tbody>
+              </table>
+              <p class="table-note">* Held-Karp exact dynamic programming solver is evaluated for small datasets ($N \le 13$) to verify global optimality.</p>
+            </div>
+
+            <!-- Tab 2: Points -->
+            <div class="tab-pane" id="tabPoints">
+              <table class="data-table" id="pointsTable">
+                <thead>
+                  <tr>
+                    <th>Point</th>
+                    <th>X (mm)</th>
+                    <th>Y (mm)</th>
+                    <th>Z (mm)</th>
+                    <th>Associated Beams / Fields</th>
+                  </tr>
+                </thead>
+                <tbody id="pointsTableBody"></tbody>
+              </table>
+            </div>
+
+            <!-- Tab 3: Distance Matrix -->
+            <div class="tab-pane" id="tabMatrix">
+              <div class="matrix-table-wrapper">
+                <table class="data-table matrix-table" id="matrixTable">
+                  <thead id="matrixTableHead"></thead>
+                  <tbody id="matrixTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div class="footer-content">
+        <p><strong>SpecRt</strong> — Radiotherapy Isocenter Sequence Optimization prototype.</p>
+        <p class="disclaimer">Sequencing prototype only. Does not alter clinical beam dose, machine limits, or collision verification.</p>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

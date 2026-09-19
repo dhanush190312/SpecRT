@@ -1,0 +1,6 @@
+pydicom>=2.4
+pandas>=1.5
+numpy>=1.24
+fastapi>=0.100.0
+uvicorn>=0.20.0
+python-multipart>=0.0.6
