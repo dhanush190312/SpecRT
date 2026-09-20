@@ -14,6 +14,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from pathlib import Path
+
 from generate_sample_rtplan import generate_sample_rtplan
 from radiopath.cost_matrix import build_cost_matrix
 from radiopath.dicom_reader import extract_isocenters, read_rtplan
@@ -21,6 +23,8 @@ from radiopath.models import isocenters_to_array
 from radiopath.report import route_to_str
 from radiopath.tsp_2opt import route_cost, two_opt
 from radiopath.tsp_held_karp import MAX_PRACTICAL_N, held_karp
+
+BASE_DIR = Path(__file__).resolve().parent
 
 app = FastAPI(
     title="SpecRt Web API",
@@ -308,7 +312,8 @@ async def optimize_sample2(
 ):
     """Load sample_rtplan_2.dcm (2D Planar dataset) and optimize machine transit time."""
     try:
-        ds = read_rtplan("sample_rtplan_2.dcm")
+        sample2_path = BASE_DIR / "sample_rtplan_2.dcm"
+        ds = read_rtplan(str(sample2_path))
         results = _process_optimization(
             ds=ds,
             closed=closed,
@@ -323,11 +328,11 @@ async def optimize_sample2(
 
 @app.get("/")
 async def serve_index():
-    return FileResponse("static/index.html")
+    return FileResponse(str(BASE_DIR / "static" / "index.html"))
 
 
 # Mount static assets
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 
 if __name__ == "__main__":
