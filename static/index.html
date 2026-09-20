@@ -96,6 +96,15 @@
                   <option value="1.0">1.00 mm</option>
                 </select>
               </div>
+
+              <!-- Machine Speed Input -->
+              <div class="speed-group" title="Couch translation speed of the linear accelerator in mm/s">
+                <label for="speedInput">Machine Speed:</label>
+                <div class="speed-input-container" style="display: inline-flex; align-items: center; gap: 6px;">
+                  <input type="number" id="speedInput" class="select-input" value="20" min="1" max="200" step="1" style="width: 70px; text-align: center;">
+                  <span class="speed-unit" style="font-size: 12px; font-weight: 700; color: #FFFFFF;">mm/s</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -112,13 +121,24 @@
               </div>
               <h3>Drag and drop your DICOM-RT Plan (<code class="code-inline">.dcm</code>) here</h3>
               
-              <!-- Buttons without icons -->
-              <div class="dropzone-buttons">
-                <button type="button" class="btn btn-primary" id="btnBrowse">Browse File</button>
-                <span class="divider-text">or test instantly</span>
-                <button type="button" class="btn btn-secondary" id="btnSample6">Load 6-Target Sample</button>
-                <button type="button" class="btn btn-secondary" id="btnSample8">Random 8-Target</button>
-                <button type="button" class="btn btn-primary" id="btnViewResults" style="display: none;">View Calculated Results</button>
+              <!-- Primary Action: Browse File at Top -->
+              <div class="upload-main-action" style="margin-top: 16px; margin-bottom: 20px;">
+                <button type="button" class="btn btn-primary" id="btnBrowse" style="padding: 12px 38px; font-size: 15px;">Browse File</button>
+              </div>
+
+              <!-- Secondary Action: Test Instantly with Sample Options -->
+              <div class="test-instantly-wrapper">
+                <div class="divider-line-container" style="display: flex; align-items: center; justify-content: center; gap: 14px; max-width: 360px; margin: 0 auto 16px;">
+                  <span style="flex: 1; height: 1px; background: rgba(255, 255, 255, 0.22);"></span>
+                  <span class="divider-text" style="font-size: 11px; color: rgba(255, 255, 255, 0.75); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 700;">or test instantly</span>
+                  <span style="flex: 1; height: 1px; background: rgba(255, 255, 255, 0.22);"></span>
+                </div>
+
+                <div class="dropzone-buttons" style="display: flex; gap: 12px; justify-content: center; align-items: center; flex-wrap: wrap;">
+                  <button type="button" class="btn btn-secondary" id="btnSample6">Load 6-Target Sample</button>
+                  <button type="button" class="btn btn-secondary" id="btnSample8">Random 8-Target</button>
+                  <button type="button" class="btn btn-primary" id="btnViewResults" style="display: none;">View Calculated Results</button>
+                </div>
               </div>
             </div>
           </div>
@@ -135,12 +155,12 @@
       <div class="loading-overlay" id="loadingOverlay" style="display: none;">
         <div class="spinner"></div>
         <h4>Optimizing Radiotherapy Isocenter Path...</h4>
-        <p>Extracting 3D coordinates & executing 2-Opt local search</p>
+        <p>Extracting 3D coordinates & optimizing machine transit time</p>
       </div>
 
-      <!-- ====================================================================
-           PAGE 2: RESULTS DASHBOARD (Second Page)
-           ==================================================================== -->
+      <!-- ===================================================================
+           PAGE 2: RESULTS DASHBOARD (Second Page after Calculation)
+           =================================================================== -->
       <section class="page-view" id="pageResults" style="display: none;">
         
         <!-- Navigation Bar for Results Page with BACK Button -->
@@ -149,11 +169,12 @@
             <button type="button" class="btn btn-secondary" id="btnBackToHome">Back to Home</button>
             <div class="active-file-info">
               <span class="file-badge">DICOM-RT</span>
-              <span class="file-name" id="currentFileName">sample_rtplan.dcm</span>
+              <span class="file-name" id="currentFileName">rtplan.dcm</span>
               <span class="mode-badge" id="currentModeBadge">Closed Tour</span>
+              <span class="mode-badge" id="currentSpeedBadge">20 mm/s Couch</span>
             </div>
           </div>
-          
+
           <div class="header-actions">
             <button type="button" class="btn btn-sm btn-ghost" id="btnExportJSON">Export JSON</button>
             <button type="button" class="btn btn-sm btn-ghost" id="btnExportCSV">Export CSV</button>
@@ -164,30 +185,31 @@
         <!-- Metrics KPI Grid -->
         <div class="kpi-grid">
           <div class="kpi-card highlight-card">
-            <div class="kpi-label">Distance Saved</div>
+            <div class="kpi-label">Transit Time Saved</div>
             <div class="kpi-value-group">
-              <span class="kpi-value" id="kpiSavedDist">0.00</span>
-              <span class="kpi-unit">mm</span>
+              <span class="kpi-value" id="kpiSavedTime">0.00</span>
+              <span class="kpi-unit">s</span>
             </div>
             <div class="kpi-badge kpi-badge-positive" id="kpiSavedPct">0.0% Reduction</div>
+            <div class="kpi-subtext" id="kpiSavedDistSub" style="margin-top: 4px; opacity: 0.9;">0.00 mm distance saved</div>
           </div>
 
           <div class="kpi-card">
-            <div class="kpi-label" id="kpiOptimizedTitle">Optimized Path</div>
+            <div class="kpi-label" id="kpiOptimizedTitle">Optimized Transit Time</div>
             <div class="kpi-value-group">
-              <span class="kpi-value" id="kpiOptimizedDist">0.00</span>
-              <span class="kpi-unit">mm</span>
+              <span class="kpi-value" id="kpiOptimizedTime">0.00</span>
+              <span class="kpi-unit">s</span>
             </div>
             <div class="kpi-subtext" id="kpiOptimizedSub">Recommended sequence</div>
           </div>
 
           <div class="kpi-card">
-            <div class="kpi-label">Initial Default Path</div>
+            <div class="kpi-label">Initial Default Time</div>
             <div class="kpi-value-group">
-              <span class="kpi-value" id="kpiInitialDist">0.00</span>
-              <span class="kpi-unit">mm</span>
+              <span class="kpi-value" id="kpiInitialTime">0.00</span>
+              <span class="kpi-unit">s</span>
             </div>
-            <div class="kpi-subtext">Original beam definition order</div>
+            <div class="kpi-subtext" id="kpiInitialSub">Original beam definition order</div>
           </div>
 
           <div class="kpi-card">
@@ -256,7 +278,7 @@
           <div class="tabs-header">
             <button type="button" class="tab-btn active" data-tab="tabComparison">Algorithm Comparison</button>
             <button type="button" class="tab-btn" data-tab="tabPoints">Extracted Isocenters (<span id="tabPointsCount">0</span>)</button>
-            <button type="button" class="tab-btn" data-tab="tabMatrix">Pairwise 3D Distance Matrix</button>
+            <button type="button" class="tab-btn" data-tab="tabMatrix">Pairwise Time & Distance Matrix</button>
           </div>
 
           <div class="tab-content">
@@ -266,14 +288,18 @@
                 <thead>
                   <tr>
                     <th>Method</th>
+                    <th>Transit Time (s)</th>
+                    <th>Time Saved</th>
                     <th>Total Distance (mm)</th>
-                    <th>Savings vs Initial</th>
                     <th>Route Traversed</th>
                     <th>Status</th>
                   </tr>
                 </thead>
                 <tbody id="comparisonTableBody"></tbody>
               </table>
+              <div class="table-footnote" style="margin-top: 10px; font-size: 12px; color: rgba(255, 255, 255, 0.75);">
+                * Optimization minimizes machine transit time (distance ÷ machine speed). The algorithm achieving the lowest total time is automatically designated as <strong>OPTIMIZED</strong>. Held-Karp guarantees the exact global optimum for N ≤ 13.
+              </div>
             </div>
 
             <!-- Tab 2: Points -->
@@ -292,8 +318,15 @@
               </table>
             </div>
 
-            <!-- Tab 3: Distance Matrix -->
+            <!-- Tab 3: Matrix -->
             <div class="tab-pane" id="tabMatrix">
+              <div class="matrix-toolbar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                <div class="matrix-title" style="font-weight: 700; color: #FFFFFF; font-size: 13px;" id="matrixTypeLabel">Pairwise Machine Transit Time Matrix (seconds)</div>
+                <div class="matrix-toggles" style="display: flex; gap: 8px;">
+                  <button type="button" class="tab-btn active" id="btnMatrixTime" style="padding: 5px 12px; font-size: 12px; border-radius: 9px; cursor: pointer;">Transit Time (s)</button>
+                  <button type="button" class="tab-btn" id="btnMatrixDist" style="padding: 5px 12px; font-size: 12px; border-radius: 9px; cursor: pointer;">Distance (mm)</button>
+                </div>
+              </div>
               <div class="matrix-table-wrapper">
                 <table class="data-table matrix-table" id="matrixTable">
                   <thead id="matrixTableHead"></thead>

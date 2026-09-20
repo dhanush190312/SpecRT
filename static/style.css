@@ -334,13 +334,13 @@ body.page-results {
   flex-wrap: wrap;
 }
 
-.toggle-group, .tolerance-group {
+.toggle-group, .tolerance-group, .speed-group {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-.toggle-label, .tolerance-group label {
+.toggle-label, .tolerance-group label, .speed-group label {
   font-size: 12px;
   font-weight: 700;
   color: #FFFFFF;
@@ -708,7 +708,9 @@ body.page-results {
 
 .header-actions {
   display: flex;
+  align-items: center;
   gap: 10px;
+  margin-left: auto;
 }
 
 /* ==========================================================================
