@@ -53,35 +53,39 @@ document.addEventListener('DOMContentLoaded', () => {
   const savedHomeBg = localStorage.getItem('specrt_home_bg');
   if (savedHomeBg) {
     document.documentElement.style.setProperty('--custom-home-bg', `url("${savedHomeBg}")`);
-    btnResetBg.style.display = 'inline-flex';
+    if (btnResetBg) btnResetBg.style.display = 'inline-flex';
   }
 
-  btnChangeBg.addEventListener('click', (e) => {
-    e.stopPropagation();
-    bgImageInput.click();
-  });
+  if (btnChangeBg && bgImageInput) {
+    btnChangeBg.addEventListener('click', (e) => {
+      e.stopPropagation();
+      bgImageInput.click();
+    });
 
-  bgImageInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const dataUrl = event.target.result;
-        document.documentElement.style.setProperty('--custom-home-bg', `url("${dataUrl}")`);
-        localStorage.setItem('specrt_home_bg', dataUrl);
-        btnResetBg.style.display = 'inline-flex';
-      };
-      reader.readAsDataURL(file);
-    }
-  });
+    bgImageInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const dataUrl = event.target.result;
+          document.documentElement.style.setProperty('--custom-home-bg', `url("${dataUrl}")`);
+          localStorage.setItem('specrt_home_bg', dataUrl);
+          if (btnResetBg) btnResetBg.style.display = 'inline-flex';
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+  }
 
-  btnResetBg.addEventListener('click', (e) => {
-    e.stopPropagation();
-    localStorage.removeItem('specrt_home_bg');
-    document.documentElement.style.removeProperty('--custom-home-bg');
-    btnResetBg.style.display = 'none';
-    bgImageInput.value = '';
-  });
+  if (btnResetBg) {
+    btnResetBg.addEventListener('click', (e) => {
+      e.stopPropagation();
+      localStorage.removeItem('specrt_home_bg');
+      document.documentElement.style.removeProperty('--custom-home-bg');
+      btnResetBg.style.display = 'none';
+      if (bgImageInput) bgImageInput.value = '';
+    });
+  }
 
   // =========================================================================
   // Multi-Page Navigation (Home Page <-> Results Page)
@@ -281,6 +285,34 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  async function fetchSample2() {
+    hideError();
+    showLoading();
+
+    const formData = new FormData();
+    formData.append('closed', isClosedTour);
+
+    try {
+      const resp = await fetch('/api/sample2', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await resp.json();
+      if (!resp.ok) {
+        throw new Error(data.detail || 'Failed to load 2D planar sample plan.');
+      }
+
+      currentResults = data;
+      renderResults(data);
+      showResultsPage();
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      hideLoading();
+    }
+  }
+
   function showLoading() {
     loadingOverlay.style.display = 'block';
   }
@@ -307,6 +339,23 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('currentModeBadge').textContent = data.closed
       ? 'Closed Tour (Loop)'
       : 'Open Path (One-Way)';
+
+    const optRoute = data.routes.optimized || data.routes.two_opt;
+    const algoTag = data.algorithm_tag || (optRoute.algorithm_tag || '(2-Opt)');
+
+    // Dynamic Title Updates
+    const kpiOptTitle = document.getElementById('kpiOptimizedTitle');
+    if (kpiOptTitle) {
+      kpiOptTitle.textContent = `Optimized Path ${algoTag}`;
+    }
+    const kpiOptSub = document.getElementById('kpiOptimizedSub');
+    if (kpiOptSub) {
+      kpiOptSub.textContent = `Recommended sequence ${algoTag}`;
+    }
+    const recTitle = document.getElementById('recommendedOrderTitle');
+    if (recTitle) {
+      recTitle.textContent = `Recommended Visiting Order ${algoTag}`;
+    }
 
     // KPI Cards
     const metrics = data.metrics;
@@ -335,11 +384,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Recommended Path Sequence List
     const routeStrElem = document.getElementById('routePathString');
-    routeStrElem.textContent = data.routes.two_opt.path_str;
+    routeStrElem.textContent = optRoute.path_str;
 
     const legsList = document.getElementById('legsList');
     legsList.innerHTML = '';
-    const legs = data.routes.two_opt.legs || [];
+    const legs = optRoute.legs || [];
     document.getElementById('badgeStepCount').textContent = `${legs.length} Legs`;
 
     legs.forEach((leg) => {
@@ -447,15 +496,17 @@ document.addEventListener('DOMContentLoaded', () => {
       hoverinfo: 'name',
     };
 
-    // 3. Optimized 2-Opt Route Trace (Bright Solid White)
-    const twoOptCoords = getRouteCoords(data.routes.two_opt.indices);
+    // 3. Recommended Optimized Route Trace (Bright Solid White)
+    const optRoute = data.routes.optimized || data.routes.two_opt;
+    const algoTag = data.algorithm_tag || (optRoute.algorithm_tag || '(2-Opt)');
+    const optCoords = getRouteCoords(optRoute.indices);
     const twoOptTrace = {
-      name: `2-Opt Optimized (${data.routes.two_opt.cost.toFixed(1)} mm)`,
+      name: `Optimized Route ${algoTag} (${optRoute.cost.toFixed(1)} mm)`,
       type: 'scatter3d',
       mode: 'lines',
-      x: twoOptCoords.x,
-      y: twoOptCoords.y,
-      z: twoOptCoords.z,
+      x: optCoords.x,
+      y: optCoords.y,
+      z: optCoords.z,
       line: {
         color: '#FFFFFF',
         width: 6,

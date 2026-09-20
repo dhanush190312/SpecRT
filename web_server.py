@@ -72,20 +72,32 @@ def _process_optimization(ds, closed: bool = True, tolerance_mm: float = 0.1, fi
         else:
             held_karp_gap_pct = 0.0
 
-    reduction_mm = max(0.0, initial_cost - two_opt_cost)
+    # Determine recommended algorithm & route (Use Held-Karp exact solution if available and equal or better than 2-opt)
+    if held_karp_route is not None and (held_karp_cost <= two_opt_cost + 1e-6):
+        recommended_route = held_karp_route
+        recommended_cost = held_karp_cost
+        algorithm_used = "Held-Karp (Exact)"
+        algorithm_tag = "(Held-Karp Exact)"
+    else:
+        recommended_route = two_opt_route
+        recommended_cost = two_opt_cost
+        algorithm_used = "2-Opt"
+        algorithm_tag = "(2-Opt)"
+
+    reduction_mm = max(0.0, initial_cost - recommended_cost)
     reduction_pct = (
         round((reduction_mm / initial_cost) * 100.0, 2) if initial_cost > 0 else 0.0
     )
 
     elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
 
-    # Calculate leg-by-leg step details for 2-opt route
+    # Calculate leg-by-leg step details for recommended route
     step_legs = []
-    route_len = len(two_opt_route)
+    route_len = len(recommended_route)
     num_hops = route_len if closed and route_len > 1 else route_len - 1
     for idx in range(num_hops):
-        from_idx = two_opt_route[idx]
-        to_idx = two_opt_route[(idx + 1) % route_len] if closed else two_opt_route[idx + 1]
+        from_idx = recommended_route[idx]
+        to_idx = recommended_route[(idx + 1) % route_len] if closed else recommended_route[idx + 1]
         dist = float(cost_matrix[from_idx, to_idx])
         step_legs.append({
             "step": idx + 1,
@@ -103,9 +115,11 @@ def _process_optimization(ds, closed: bool = True, tolerance_mm: float = 0.1, fi
         "n_isocenters": n,
         "tolerance_mm": tolerance_mm,
         "execution_time_ms": elapsed_ms,
+        "algorithm_used": algorithm_used,
+        "algorithm_tag": algorithm_tag,
         "metrics": {
             "initial_distance_mm": round(initial_cost, 2),
-            "optimized_distance_mm": round(two_opt_cost, 2),
+            "optimized_distance_mm": round(recommended_cost, 2),
             "distance_saved_mm": round(reduction_mm, 2),
             "savings_percent": reduction_pct,
             "held_karp_gap_pct": held_karp_gap_pct,
@@ -118,12 +132,20 @@ def _process_optimization(ds, closed: bool = True, tolerance_mm: float = 0.1, fi
                 "path_str": route_to_str(initial_route, labels, closed),
                 "cost": round(initial_cost, 2),
             },
+            "optimized": {
+                "indices": recommended_route,
+                "labels": [labels[i] for i in recommended_route],
+                "path_str": route_to_str(recommended_route, labels, closed),
+                "cost": round(recommended_cost, 2),
+                "legs": step_legs,
+                "algorithm_used": algorithm_used,
+                "algorithm_tag": algorithm_tag,
+            },
             "two_opt": {
                 "indices": two_opt_route,
                 "labels": [labels[i] for i in two_opt_route],
                 "path_str": route_to_str(two_opt_route, labels, closed),
                 "cost": round(two_opt_cost, 2),
-                "legs": step_legs,
             },
             "held_karp": {
                 "indices": held_karp_route,
@@ -199,6 +221,24 @@ async def generate_and_optimize_sample(
         return JSONResponse(content=results)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to generate sample: {str(exc)}")
+
+
+@app.post("/api/sample2")
+async def optimize_sample2(
+    closed: bool = Form(True),
+):
+    """Load sample_rtplan_2.dcm (2D Planar dataset) and optimize it."""
+    try:
+        ds = read_rtplan("sample_rtplan_2.dcm")
+        results = _process_optimization(
+            ds=ds,
+            closed=closed,
+            tolerance_mm=0.1,
+            filename="sample_rtplan_2.dcm (2D Planar)",
+        )
+        return JSONResponse(content=results)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to load sample 2: {str(exc)}")
 
 
 @app.get("/")

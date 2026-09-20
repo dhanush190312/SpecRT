@@ -14,6 +14,7 @@
   <!-- Plotly.js for high-performance 3D WebGL Scatter & Trajectory Plotting -->
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 
+  <link rel="icon" type="image/jpeg" href="/static/logo.jpg">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body class="page-home">
@@ -47,15 +48,7 @@
     <header class="app-header">
       <div class="brand-group">
         <div class="brand-logo">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <circle cx="12" cy="12" r="6"></circle>
-            <circle cx="12" cy="12" r="2"></circle>
-            <line x1="12" y1="2" x2="12" y2="6"></line>
-            <line x1="12" y1="18" x2="12" y2="22"></line>
-            <line x1="2" y1="12" x2="6" y2="12"></line>
-            <line x1="18" y1="12" x2="22" y2="12"></line>
-          </svg>
+          <img src="/static/logo.jpg" alt="SpecRt Radiotherapy Logo" class="brand-logo-img">
         </div>
         <div>
           <div class="brand-title">
@@ -63,13 +56,6 @@
             <span class="badge badge-tech">TSP Optimizer</span>
           </div>
           <p class="brand-subtitle">Radiotherapy DICOM-RT Isocenter Path & Couch Sequencing</p>
-        </div>
-      </div>
-
-      <div class="header-status">
-        <div class="status-indicator">
-          <span class="status-dot"></span>
-          <span>Engine Active: 2-Opt & Held-Karp</span>
         </div>
       </div>
     </header>
@@ -125,7 +111,6 @@
                 </svg>
               </div>
               <h3>Drag and drop your DICOM-RT Plan (<code class="code-inline">.dcm</code>) here</h3>
-              <p>Compatible with any TPS (Eclipse, RayStation, Monaco) with <span class="highlight">Modality = RTPLAN</span> and <span class="highlight">BeamSequence</span></p>
               
               <!-- Buttons without icons -->
               <div class="dropzone-buttons">
@@ -141,14 +126,6 @@
           <!-- Error Alert Container -->
           <div class="alert alert-error" id="errorAlert" style="display: none;">
             <span id="errorMessage">Error text</span>
-          </div>
-
-          <!-- Home Page Background Image Selector Bar -->
-          <div class="bg-customizer-bar">
-            <span>Home Background:</span>
-            <input type="file" id="bgImageInput" accept="image/*" style="display: none;">
-            <button type="button" class="btn btn-sm btn-ghost" id="btnChangeBg">Upload Background Image</button>
-            <button type="button" class="btn btn-sm btn-ghost" id="btnResetBg" style="display: none;">Reset Background</button>
           </div>
         </div>
 
@@ -196,7 +173,7 @@
           </div>
 
           <div class="kpi-card">
-            <div class="kpi-label">Optimized Path (2-Opt)</div>
+            <div class="kpi-label" id="kpiOptimizedTitle">Optimized Path</div>
             <div class="kpi-value-group">
               <span class="kpi-value" id="kpiOptimizedDist">0.00</span>
               <span class="kpi-unit">mm</span>
@@ -263,7 +240,7 @@
           <!-- Right: Recommended Step-by-Step Path Sequence -->
           <div class="panel sequence-panel">
             <div class="panel-header">
-              <h3>Recommended Visiting Order</h3>
+              <h3 id="recommendedOrderTitle">Recommended Visiting Order</h3>
               <span class="badge badge-tech" id="badgeStepCount">0 Legs</span>
             </div>
 
@@ -297,7 +274,6 @@
                 </thead>
                 <tbody id="comparisonTableBody"></tbody>
               </table>
-              <p class="table-note">* Held-Karp exact dynamic programming solver is evaluated for small datasets ($N \le 13$) to verify global optimality.</p>
             </div>
 
             <!-- Tab 2: Points -->
